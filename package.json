@@ -59,7 +59,7 @@
     "@adonisjs/assembler": "^7.0.0",
     "@adonisjs/core": "^6.2.0",
     "@adonisjs/drive": "^3.4.1",
-    "@adonisjs/lucid": "^19.0.0"
+    "@adonisjs/lucid": "^21.6.0"
   },
   "dependencies": {
     "@poppinss/utils": "^6.7.1"
@@ -70,7 +70,7 @@
     "@adonisjs/eslint-config": "^2.0.0",
     "@adonisjs/core": "^6.2.0",
     "@adonisjs/drive": "^3.4.1",
-    "@adonisjs/lucid": "^19.0.0",
+    "@adonisjs/lucid": "^21.6.0",
     "@japa/assert": "^4.0.1",
     "@japa/runner": "^3.0.0",
     "@types/node": "^20.0.0",
