@@ -191,10 +191,22 @@ async function processAttachment(instance: any) {
     }
 
     if (file.isLocal === true) {
+      const options = ModelConstructor.$attachments[property] || {}
+      
+      // Check if validateMime is enabled and validate the MIME type
+      if (options.validateMime && options.allowedMimes && options.allowedMimes.length > 0) {
+        if (!file.validateMimeType({ allowedMimes: options.allowedMimes })) {
+          throw new Error(
+            `Invalid MIME type for attachment "${property}". ` +
+            `Expected one of: ${options.allowedMimes.join(', ')}, but got: ${file.mimeType}`
+          )
+        }
+      }
+      
       filesToProcess.push({
         property,
         file,
-        options: ModelConstructor.$attachments[property] || {},
+        options,
       })
     }
   })
@@ -214,6 +226,16 @@ async function processAttachment(instance: any) {
       filesToProcess.map(({ file, options }) => {
         file.setOptions(options)
         return file.store()
+      })
+    )
+    
+    // After storing all files, compute URLs for those with computeUrl option
+    await Promise.all(
+      filesToProcess.map(({ file, options }) => {
+        if (options.computeUrl) {
+          return file.computeUrl().catch(() => {})
+        }
+        return Promise.resolve()
       })
     )
   } catch (error) {
