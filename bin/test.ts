@@ -1,37 +1,44 @@
-import { assert } from '@japa/assert'
-import { specReporter } from '@japa/spec-reporter'
-import { runFailedTests } from '@japa/run-failed-tests'
-import { processCliArgs, configure, run } from '@japa/runner'
-
 /*
-|--------------------------------------------------------------------------
-| Configure tests
-|--------------------------------------------------------------------------
-|
-| The configure method accepts the configuration to configure the Japa
-| tests runner.
-|
-| The first method call "processCliArgs" process the command line arguments
-| and turns them into a config object. Using this method is not mandatory.
-|
-| Please consult japa.dev/runner-config for the config docs.
-*/
+ * @adonisjs/attachment-lite
+ *
+ * (c) AdonisJS
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+import { configure, processCLIArgs, run } from '@japa/runner'
+import { assert } from '@japa/assert'
+
+// Extend TestContext interface to include assert
+declare module '@japa/runner' {
+  interface TestContext {
+    assert: {
+      isFunction: (value: any) => void;
+      isTrue: (value: any, message?: string) => void;
+      isFalse: (value: any, message?: string) => void;
+      isString: (value: any, message?: string) => void;
+      isObject: (value: any, message?: string) => void;
+      isNull: (value: any, message?: string) => void;
+      equal: (actual: any, expected: any, message?: string) => void;
+      include: (haystack: any, needle: any, message?: string) => void;
+      property: (obj: any, prop: string, message?: string) => void;
+      instanceOf: (value: any, constructor: any, message?: string) => void;
+      strictEqual: (actual: any, expected: any, message?: string) => void;
+      isDefined: (value: any, message?: string) => void;
+      exists: (value: any, message?: string) => void;
+    }
+  }
+}
+
+console.log('Starting test runner...')
+
+// Configure the test runner
 configure({
-  ...processCliArgs(process.argv.slice(2)),
-  ...{
-    files: ['test/**/*.spec.ts'],
-    plugins: [assert(), runFailedTests()],
-    reporters: [specReporter()],
-    importer: (filePath) => import(filePath),
-  },
+  files: ['tests/**/*.spec.ts'],
+  plugins: [assert()],
+  timeout: 5000
 })
 
-/*
-|--------------------------------------------------------------------------
-| Run tests
-|--------------------------------------------------------------------------
-|
-| The following "run" method is required to execute all the tests.
-|
-*/
+// Run the tests
 run()

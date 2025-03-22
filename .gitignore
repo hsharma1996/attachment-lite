@@ -1,14 +1,31 @@
+# Dependencies
 node_modules
-coverage
-test/__app
-.DS_STORE
-.nyc_output
-.idea
-.vscode/
-*.sublime-project
-*.sublime-workspace
-*.log
+package-lock.json
+yarn.lock
+
+# Build
 build
 dist
-shrinkwrap.yaml
-package-lock.json
+tmp
+
+# Coverage
+coverage
+.nyc_output
+
+# Test
+.env.testing
+
+# IDE & Editors
+.idea
+.vscode
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+.env
+.env.local
+*.log

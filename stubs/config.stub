@@ -1,0 +1,21 @@
+import { defineConfig } from '@adonisjs/attachment-lite'
+
+/**
+ * Configuration options for attachment-lite
+ */
+export default defineConfig({
+  /**
+   * Default disk to use for storing attachments
+   */
+  disk: 'local',
+  
+  /**
+   * Default folder to store attachments
+   */
+  defaultFolder: 'uploads',
+  
+  /**
+   * Whether to validate uploaded file MIME types
+   */
+  validateMimeTypes: true,
+}) 
