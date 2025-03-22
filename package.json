@@ -1,6 +1,6 @@
 {
   "name": "@craftnotion/attachment-lite",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "description": "Convert fields on Lucid models to attachment data type",
   "main": "build/index.js",
   "types": "build/index.d.ts",
