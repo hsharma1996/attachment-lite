@@ -65,14 +65,15 @@
     "@poppinss/utils": "^6.7.1"
   },
   "devDependencies": {
-    "@swc/core": "^1.10.16",
-    "@adonisjs/tsconfig": "^1.4.0",
-    "@adonisjs/eslint-config": "^2.0.0",
     "@adonisjs/core": "^6.2.0",
     "@adonisjs/drive": "^3.4.1",
+    "@adonisjs/eslint-config": "^2.0.0",
     "@adonisjs/lucid": "^21.6.0",
+    "@adonisjs/tsconfig": "^1.4.0",
     "@japa/assert": "^4.0.1",
     "@japa/runner": "^3.0.0",
+    "@swc/core": "^1.10.16",
+    "@types/mime-types": "^2.1.4",
     "@types/node": "^20.0.0",
     "del-cli": "^5.0.0",
     "eslint": "^9.23.0",

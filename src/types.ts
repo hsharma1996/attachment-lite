@@ -7,11 +7,31 @@
  * file that was distributed with this source code.
  */
 
-// Remove the direct import to avoid type conflicts
-// import type { MultipartFile as CoreMultipartFile } from '@adonisjs/core/bodyparser'
+// Import Lucid types directly instead of defining them ourselves
+import { MultipartFile } from "@adonisjs/core/bodyparser";
+import type { LucidModel, LucidRow } from "@adonisjs/lucid/types/model";
 
-// Import the adapter interface from our attachment.ts file
-import type { MultipartFileAdapter } from "./attachment.js";
+/**
+ * Extend the LucidModel interface to add attachment support
+ */
+declare module "@adonisjs/lucid/types/model" {
+  interface LucidModel {
+    /**
+     * A collection of attachment configurations for a given model
+     */
+    $attachments?: Record<string, AttachmentOptions>;
+  }
+
+  interface LucidRow {
+    /**
+     * Data for tracking attachment operations
+     */
+    attachmentData?: {
+      attached: string[];
+      detached: string[];
+    };
+  }
+}
 
 /**
  * Options for configuring an attachment
@@ -115,10 +135,7 @@ export interface AttachmentContract {
   /**
    * Create an attachment from a multipart file
    */
-  fromFile(
-    file: MultipartFileAdapter,
-    options?: AttachmentOptions,
-  ): Promise<this>;
+  fromFile(file: MultipartFile, options?: AttachmentOptions): Promise<this>;
 
   /**
    * Create an attachment from a file path
@@ -178,3 +195,6 @@ export interface AttachmentContract {
    */
   toObject(): Record<string, any>;
 }
+
+// Re-export Lucid types for convenience
+export { LucidModel, LucidRow };

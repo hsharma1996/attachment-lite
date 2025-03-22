@@ -19,6 +19,7 @@ import { Disk, DriveManager } from "flydrive";
 import type { DriverContract } from "@adonisjs/drive/types";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import mime from "mime-types";
 import { MultipartFile } from "@adonisjs/core/bodyparser";
 
 /**
@@ -97,7 +98,11 @@ export class Attachment implements AttachmentContract {
    */
   private tmpPath: string | null = null;
 
-  constructor() {}
+  constructor(options?: AttachmentOptions) {
+    if (options) {
+      this.setOptions(options);
+    }
+  }
 
   /**
    * Set the static drive instance
@@ -128,7 +133,7 @@ export class Attachment implements AttachmentContract {
     file: MultipartFile,
     options?: AttachmentOptions,
   ): Promise<Attachment> {
-    const attachment = new Attachment();
+    const attachment = new Attachment(options);
     await attachment.fromFile(file, options);
     return attachment;
   }
@@ -170,9 +175,23 @@ export class Attachment implements AttachmentContract {
     this.isLocal = true;
     this.fileName = `${randomUUID()}.${file.extname}`;
     this.tmpPath = file.tmpPath ?? null;
-    this.size = file.size;
+    this.size = file.size ?? null;
     this.extname = file.extname ?? null;
-    this.mimeType = file.type ?? null;
+
+    // Detect mime type from file.type or fallback to inferring from the extension
+    if (file.type && file.subtype) {
+      this.mimeType = `${file.type}/${file.subtype}`;
+    } else if (file.type && file.type.includes("/")) {
+      // If type already includes the subtype (like 'text/plain')
+      this.mimeType = file.type;
+    } else if (file.type) {
+      // Just set type if that's all we have (no subtype)
+      this.mimeType = file.type;
+    } else if (this.extname) {
+      this.mimeType = mime.lookup(`.${this.extname}`) || null;
+    } else {
+      this.mimeType = null;
+    }
 
     if (options) {
       this.setOptions(options);

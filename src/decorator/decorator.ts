@@ -7,16 +7,114 @@
  * file that was distributed with this source code.
  */
 
-import type { AttachmentOptions, AttachmentContract } from "../types.js";
+import type {
+  AttachmentOptions,
+  AttachmentContract,
+  LucidModel,
+  LucidRow,
+} from "../types.js";
 import { Attachment } from "../attachment.js";
+
+/**
+ * Detect changes in attachment properties and mark detached files for cleanup
+ */
+function detectAttachmentChanges(instance: LucidRow): void {
+  const ModelConstructor = instance.constructor as LucidModel;
+  if (!ModelConstructor.$attachments) return;
+
+  // Initialize attachment data if not exists
+  if (!instance.attachmentData) {
+    instance.attachmentData = {
+      attached: [],
+      detached: [],
+    };
+  }
+
+  // Get original values from the model
+  const originalValues = (instance as any).$original || {};
+
+  // Check each attachment property
+  Object.keys(ModelConstructor.$attachments).forEach((property) => {
+    const key = property as keyof LucidRow;
+    const newValue = instance[key] as AttachmentContract | null;
+    const oldValue = originalValues[property] as unknown;
+
+    // Skip if no old value (nothing to detach)
+    if (!oldValue) return;
+
+    // Convert old value to attachment if it's not already
+    const oldAttachment =
+      typeof oldValue === "string"
+        ? Attachment.fromJSON(oldValue)
+        : (oldValue as AttachmentContract | null);
+
+    // If old value exists and is different from new value
+    if (
+      oldAttachment &&
+      (!newValue || oldAttachment.filePath !== newValue.filePath)
+    ) {
+      // Add to detached list for cleanup
+      if (instance.attachmentData) {
+        instance.attachmentData.detached.push(property);
+      }
+    }
+  });
+}
+
+/**
+ * Clean up detached attachments
+ */
+async function cleanupDetachedAttachments(instance: LucidRow): Promise<void> {
+  if (!instance.attachmentData?.detached?.length) return;
+
+  const originalValues = (instance as any).$original || {};
+
+  const promises = instance.attachmentData.detached.map(async (property) => {
+    // Get original attachment data
+    const originalData = originalValues[property];
+    if (!originalData) return;
+
+    // Create attachment from original data
+    const attachmentInstance =
+      typeof originalData === "string"
+        ? Attachment.fromJSON(originalData)
+        : (originalData as AttachmentContract | null);
+
+    // Destroy the attachment if it exists
+    if (attachmentInstance && !attachmentInstance.isLocal) {
+      // Check if destroy is a function before calling it
+      if (typeof attachmentInstance.destroy === "function") {
+        await attachmentInstance.destroy().catch(() => {
+          // Log error but don't fail the operation
+          console.warn(
+            `Failed to destroy detached attachment: ${attachmentInstance.filePath}`,
+          );
+        });
+      } else {
+        // If destroy is not a function, log a warning
+        console.warn(
+          `Attachment destroy method not available for: ${attachmentInstance.filePath}`,
+        );
+      }
+    }
+  });
+
+  await Promise.all(promises);
+
+  // Clear the detached list after processing
+  if (instance.attachmentData) {
+    instance.attachmentData.detached = [];
+  }
+}
 
 /**
  * Verify if an attachment file exists in storage and set to null if missing
  */
 async function verifyAttachmentExists(
-  instance: any,
-  property: string,
+  instance: LucidRow,
+  property: keyof LucidRow,
 ): Promise<void> {
+  // Use type assertion for string indexing
   const attachmentValue = instance[property] as AttachmentContract | null;
 
   // Skip if there's no attachment or if it's a local file
@@ -38,6 +136,7 @@ async function verifyAttachmentExists(
     );
 
     // Set the property to null since the file is missing
+    // @ts-ignore
     instance[property] = null;
 
     // Also update the attributes to maintain consistency
@@ -50,8 +149,8 @@ async function verifyAttachmentExists(
 /**
  * Verify all attachments on a model instance
  */
-async function verifyAttachments(instance: any) {
-  const ModelConstructor = instance.constructor as any;
+async function verifyAttachments(instance: LucidRow) {
+  const ModelConstructor = instance.constructor as LucidModel;
 
   if (!ModelConstructor.$attachments) {
     return;
@@ -60,8 +159,95 @@ async function verifyAttachments(instance: any) {
   // Process all attachment fields
   await Promise.all(
     Object.keys(ModelConstructor.$attachments).map((property) => {
-      return verifyAttachmentExists(instance, property);
+      return verifyAttachmentExists(instance, property as keyof LucidRow);
     }),
+  );
+}
+
+/**
+ * Persist a specific attachment without saving the model
+ * This is useful when you want to store an attachment without saving model changes
+ */
+export async function persistAttachment(
+  instance: LucidRow,
+  property: keyof LucidRow,
+): Promise<void> {
+  const ModelConstructor = instance.constructor as LucidModel;
+
+  if (
+    !ModelConstructor.$attachments ||
+    !ModelConstructor.$attachments[property]
+  ) {
+    throw new Error(
+      `Property "${property}" is not configured as an attachment`,
+    );
+  }
+
+  // Use type assertion for string indexing
+  const file = instance[property] as AttachmentContract | null;
+  if (!file || !file.isLocal) {
+    return; // Nothing to persist or already persisted
+  }
+
+  const options = ModelConstructor.$attachments[property];
+
+  // Check MIME type validation
+  if (
+    options.validateMime &&
+    options.allowedMimes &&
+    options.allowedMimes.length > 0
+  ) {
+    if (!file.validateMimeType({ allowedMimes: options.allowedMimes })) {
+      throw new Error(
+        `Invalid MIME type for attachment "${property}". ` +
+          `Expected one of: ${options.allowedMimes.join(", ")}, but got: ${file.mimeType}`,
+      );
+    }
+  }
+
+  // Store the file
+  file.setOptions(options);
+  await file.store();
+
+  // Compute URL if needed
+  if (options.computeUrl) {
+    await file.computeUrl().catch(() => {});
+  }
+}
+
+/**
+ * Process multiple attachments at once without saving the model
+ * Useful for batch processing multiple attachment fields
+ */
+export async function processAttachments(
+  instance: LucidRow,
+  properties?: string[],
+): Promise<void> {
+  const ModelConstructor = instance.constructor as LucidModel;
+
+  if (!ModelConstructor.$attachments) {
+    return;
+  }
+
+  // Determine which properties to process
+  const attachmentProperties =
+    properties || Object.keys(ModelConstructor.$attachments);
+
+  // Filter to only include properties that are actually configured as attachments
+  const validProperties = attachmentProperties.filter(
+    (prop) =>
+      ModelConstructor.$attachments && ModelConstructor.$attachments[prop],
+  );
+
+  if (validProperties.length === 0) {
+    return;
+  }
+
+  // Process all attachments in parallel
+  await Promise.all(
+    validProperties.map((property) =>
+      persistAttachment(instance, property as keyof LucidRow),
+    ),
   );
 }
 
@@ -69,8 +255,8 @@ async function verifyAttachments(instance: any) {
  * Attachment decorator to be used on Lucid model properties
  */
 export function attachment(options?: AttachmentOptions) {
-  return function (target: any, property: string) {
-    const ModelConstructor = target.constructor as any;
+  return function (target: object, property: string) {
+    const ModelConstructor = target.constructor as LucidModel;
 
     /**
      * Add hooks for processing and cleaning up attachments during
@@ -83,14 +269,25 @@ export function attachment(options?: AttachmentOptions) {
     // Create hooks - only if ModelConstructor has these methods
     if (typeof ModelConstructor.before === "function") {
       ModelConstructor.before("create", processAttachment);
-      ModelConstructor.before("update", processAttachment);
+
+      // Enhanced update hook to handle attachment changes
+      ModelConstructor.before("update", async (instance: LucidRow) => {
+        // First detect changes to existing attachments
+        detectAttachmentChanges(instance);
+
+        // Then clean up detached attachments
+        await cleanupDetachedAttachments(instance);
+
+        // Finally process new attachments
+        await processAttachment(instance);
+      });
     }
 
     if (typeof ModelConstructor.after === "function") {
       ModelConstructor.after("delete", cleanupAttachment);
 
       // Fetch hooks with verification
-      ModelConstructor.after("fetch", async (result: any) => {
+      ModelConstructor.after("fetch", async (result: LucidRow) => {
         await computeUrls(result);
         // Verify attachments after computing URLs
         if (result) {
@@ -98,7 +295,7 @@ export function attachment(options?: AttachmentOptions) {
         }
       });
 
-      ModelConstructor.after("find", async (result: any) => {
+      ModelConstructor.after("find", async (result: LucidRow) => {
         await computeUrls(result);
         // Verify attachments after computing URLs
         if (result) {
@@ -106,14 +303,17 @@ export function attachment(options?: AttachmentOptions) {
         }
       });
 
-      ModelConstructor.after("paginate", async (result: any) => {
-        await computeUrlsForPagination(result);
-        // Verify attachments in pagination results
-        const models = result.all();
-        if (models.length) {
-          await Promise.all(models.map(verifyAttachments));
-        }
-      });
+      ModelConstructor.after(
+        "paginate",
+        async (result: { all: () => LucidRow[] }) => {
+          await computeUrlsForPagination(result);
+          // Verify attachments in pagination results
+          const models = result.all();
+          if (models.length) {
+            await Promise.all(models.map(verifyAttachments));
+          }
+        },
+      );
     }
 
     /**
@@ -247,8 +447,8 @@ export function attachment(options?: AttachmentOptions) {
 /**
  * Process attachments during model create or update
  */
-async function processAttachment(instance: any) {
-  const ModelConstructor = instance.constructor as any;
+async function processAttachment(instance: LucidRow) {
+  const ModelConstructor = instance.constructor as LucidModel;
   if (!ModelConstructor.$attachments) {
     return;
   }
@@ -256,10 +456,12 @@ async function processAttachment(instance: any) {
   /**
    * Initialize attachment data if not exists
    */
-  instance.attachmentData = instance.attachmentData || {
-    attached: [],
-    detached: [],
-  };
+  if (!instance.attachmentData) {
+    instance.attachmentData = {
+      attached: [],
+      detached: [],
+    };
+  }
 
   /**
    * Collect all attachments to be processed
@@ -271,13 +473,22 @@ async function processAttachment(instance: any) {
   }[] = [];
 
   Object.keys(ModelConstructor.$attachments).forEach((property) => {
-    const file = instance[property] as AttachmentContract | null;
+    // Use type assertion for string indexing
+    const file = instance[
+      property as keyof LucidRow
+    ] as AttachmentContract | null;
     if (!file) {
       return;
     }
 
     if (file.isLocal === true) {
-      const options = ModelConstructor.$attachments[property] || {};
+      // We've already checked if $attachments exists above
+      const options = ModelConstructor.$attachments![property];
+
+      // Track newly attached files
+      if (instance.attachmentData) {
+        instance.attachmentData.attached.push(property);
+      }
 
       // Check if validateMime is enabled and validate the MIME type
       if (
@@ -346,8 +557,8 @@ async function processAttachment(instance: any) {
 /**
  * Clean up attachment when model instance is deleted
  */
-async function cleanupAttachment(instance: any) {
-  const ModelConstructor = instance.constructor as any;
+async function cleanupAttachment(instance: LucidRow) {
+  const ModelConstructor = instance.constructor as LucidModel;
   if (!ModelConstructor.$attachments) {
     return;
   }
@@ -358,7 +569,10 @@ async function cleanupAttachment(instance: any) {
   const promises: Promise<any>[] = [];
 
   Object.keys(ModelConstructor.$attachments).forEach((property) => {
-    const file = instance[property] as AttachmentContract | null;
+    // Use type assertion for string indexing
+    const file = instance[
+      property as keyof LucidRow
+    ] as AttachmentContract | null;
     if (!file) {
       return;
     }
@@ -375,21 +589,21 @@ async function cleanupAttachment(instance: any) {
 /**
  * Compute urls for the given model instance
  */
-async function computeUrls(result: any) {
-  await computeUrlsForMany([result].filter(Boolean));
+async function computeUrls(result: LucidRow | null) {
+  await computeUrlsForMany([result].filter(Boolean) as LucidRow[]);
 }
 
 /**
  * Compute urls for the given model instances in pagination results
  */
-async function computeUrlsForPagination(result: { all: () => any[] }) {
+async function computeUrlsForPagination(result: { all: () => LucidRow[] }) {
   await computeUrlsForMany(result.all());
 }
 
 /**
  * Compute urls for the given model instances
  */
-async function computeUrlsForMany(models: any[]) {
+async function computeUrlsForMany(models: LucidRow[]) {
   /**
    * Return early when no models
    */
@@ -397,7 +611,7 @@ async function computeUrlsForMany(models: any[]) {
     return;
   }
 
-  const ModelConstructor = models[0].constructor as any;
+  const ModelConstructor = models[0].constructor as LucidModel;
   if (!ModelConstructor.$attachments) {
     return;
   }
@@ -408,13 +622,16 @@ async function computeUrlsForMany(models: any[]) {
    * Collect all attachments for which we will compute urls
    */
   models.forEach((model) => {
-    Object.keys(ModelConstructor.$attachments).forEach((property) => {
-      const file = model[property] as AttachmentContract | null;
+    Object.keys(ModelConstructor.$attachments!).forEach((property) => {
+      // Use type assertion for string indexing
+      const file = model[
+        property as keyof LucidRow
+      ] as AttachmentContract | null;
       if (!file) {
         return;
       }
 
-      const options = ModelConstructor.$attachments[property];
+      const options = ModelConstructor.$attachments![property];
       if (options?.computeUrl) {
         promises.push(file.computeUrl().catch(() => {}));
       }

@@ -165,13 +165,13 @@ test.group("Attachment", (group) => {
     // Mock a multipart file object similar to what AdonisJS would provide
     const mockMultipartFile = {
       clientName: "test-upload.txt",
-      fileName: "test-upload.txt",
-      filePath: testFilePath,
+      filePath: undefined,
       tmpPath: testFilePath,
       size: testBuffer.length,
       extname: "txt",
+      // Only set the type property with correct value
       type: "text/plain",
-      subtype: "plain",
+      // Remove the subtype property to avoid duplication
       validate() {
         return { isValid: true, errors: [] };
       },
@@ -214,12 +214,19 @@ test.group("Attachment", (group) => {
     // Mock a multipart file object similar to what AdonisJS would provide
     const mockMultipartFile = {
       clientName: "test-upload.txt",
-      fileName: "test-upload.txt",
-      filePath: testFilePath,
+      filePath: undefined,
       tmpPath: testFilePath,
       size: testBuffer.length,
       extname: "txt",
+      // Only set the type property with correct value
       type: "text/plain",
+      // Remove the subtype property to avoid duplication
+      validate() {
+        return { isValid: true, errors: [] };
+      },
+      move() {
+        return { fileName: "test-upload.txt" };
+      },
     };
 
     const file = await Attachment.fromFile(mockMultipartFile as any);

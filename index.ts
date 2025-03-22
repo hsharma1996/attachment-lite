@@ -11,7 +11,11 @@
  * Export Attachment class and interfaces
  */
 export { Attachment } from "./src/attachment.js";
-export { attachment } from "./src/decorator/decorator.js";
+export {
+  attachment,
+  persistAttachment,
+  processAttachments,
+} from "./src/decorator/decorator.js";
 
 export { configure } from "./configure.js";
 
@@ -27,4 +31,6 @@ export type {
   AttachmentOptions,
   AttachmentContract,
   AttachmentLiteConfig,
+  LucidRow,
+  LucidModel,
 } from "./src/types.js";
