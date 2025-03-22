@@ -7,18 +7,22 @@
  * file that was distributed with this source code.
  */
 
-import { test } from '@japa/runner'
-import { Attachment } from '../src/attachment.js'
-import { attachment } from '../src/decorator/decorator.js'
-import AttachmentProvider from '../providers/attachment_provider.js'
+import { test } from "@japa/runner";
+import { Attachment } from "../src/attachment.js";
+import { attachment } from "../src/decorator/decorator.js";
+import AttachmentProvider from "../providers/attachment_provider.js";
+import type { TestContext } from "./types.js";
 
-test.group('Exports', () => {
-  test('should export required components', async (ctx) => {
-    // @ts-ignore - assert is added at runtime by the Japa assert plugin
-    const { assert } = ctx
+test.group("Exports", () => {
+  test("Attachment class is exported", async ({ assert }: TestContext) => {
+    assert.isFunction(Attachment);
+  });
 
-    assert.exists(Attachment, 'Attachment class is exported')
-    assert.exists(attachment, 'attachment decorator is exported')
-    assert.exists(AttachmentProvider, 'AttachmentProvider is exported')
-  })
-}) 
+  test("attachment decorator is exported", async ({ assert }: TestContext) => {
+    assert.isFunction(attachment);
+  });
+
+  test("AttachmentProvider is exported", async ({ assert }: TestContext) => {
+    assert.isFunction(AttachmentProvider);
+  });
+});

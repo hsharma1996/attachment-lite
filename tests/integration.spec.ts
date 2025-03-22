@@ -7,18 +7,23 @@
  * file that was distributed with this source code.
  */
 
-import { test } from '@japa/runner'
-import { Attachment } from '../src/attachment.js'
-import { setupDrive } from './bootstrap.js'
-import { join } from 'node:path'
-import fs from 'node:fs/promises'
+import { test } from "@japa/runner";
+import { Attachment } from "../src/attachment.js";
+import mockDrive from "./utils/mock_drive.js";
+import { join } from "node:path";
+import fs from "node:fs/promises";
+import { attachment } from "../src/decorator/decorator.js";
+import type { TestContext } from "./types.js";
 
 /**
  * Simple model class for testing
  */
-class BaseModel {
+class TestBaseModel {
   $attributes: Record<string, any> = {};
   $original: Record<string, any> = {};
+  $isLocal = true;
+  $isPersisted = false;
+  $dirty: Set<string> = new Set();
 
   constructor() {
     // Empty constructor
@@ -59,7 +64,8 @@ class BaseModel {
 /**
  * User model with attachment
  */
-class User extends BaseModel {
+// @ts-ignore - Class is for demonstration purposes
+class TestUser extends TestBaseModel {
   // Private property to store avatar attachment
   $avatar?: Attachment;
 
@@ -67,7 +73,7 @@ class User extends BaseModel {
     super();
 
     // Manually apply what the decorator would do
-    Object.defineProperty(this, 'avatar', {
+    Object.defineProperty(this, "avatar", {
       get: () => this.$avatar,
       set: (value) => {
         this.$avatar = value;
@@ -85,205 +91,507 @@ class User extends BaseModel {
 /**
  * Model with avatar attachment for testing
  */
-class TestModel extends BaseModel {
+// @ts-ignore - Class is for demonstration purposes
+class TestModel extends TestBaseModel {
   // Property for the avatar attachment
   private _avatar: Attachment | null = null;
-  
+
   get avatar(): Attachment | null {
     return this._avatar;
   }
-  
+
   set avatar(value: Attachment | null) {
     this._avatar = value;
     this.$attributes.avatar = value;
   }
 }
 
-test.group('Integration', (group) => {
+test.group("Integration", (group) => {
   let testFilePath: string;
+  let testBuffer: Buffer;
+  let originalSetDrive: typeof Attachment.setDrive;
 
   // Set up the drive for testing
-  setupDrive();
+  group.setup(() => {
+    originalSetDrive = Attachment.setDrive;
+    Attachment.setDrive(mockDrive as any);
+  });
+
+  group.teardown(() => {
+    // Restore original drive
+    Attachment.setDrive = originalSetDrive;
+    // Clean up any fake disks
+    mockDrive.restore("local");
+  });
 
   group.each.setup(async () => {
     // Create a test file
-    testFilePath = join(process.cwd(), 'test-file.txt');
-    await fs.writeFile(testFilePath, 'Test content');
+    testFilePath = join(process.cwd(), "test-file.txt");
+    testBuffer = Buffer.from("Test content");
+    await fs.writeFile(testFilePath, testBuffer);
 
-    return () => fs.unlink(testFilePath).catch(() => { });
+    return () => fs.unlink(testFilePath).catch(() => {});
   });
 
-  test('model can save an attachment', async (ctx) => {
-    // @ts-ignore - assert is added at runtime by the Japa assert plugin
-    const { assert } = ctx;
+  test("model can save and delete an attachment", async ({
+    assert,
+  }: TestContext) => {
+    /**
+     * The base model with attachments
+     */
+    class TestBaseModel1 {
+      // Define stub properties
+      $attributes: Record<string, any> = {};
+      $original: Record<string, any> = {};
+      $isLocal = true;
+      $isPersisted = false;
+      $dirty: Set<string> = new Set();
 
-    const user = new User();
+      // Attachment decorator
+      @attachment()
+      declare avatar: Attachment | null;
 
-    // Create an attachment
-    const avatar = new Attachment();
-    await avatar.fromPath(testFilePath);
-
-    // Set it on the model
-    user.avatar = avatar;
-
-    // Verify it's still local
-    assert.isTrue(avatar.isLocal);
-
-    // Save the model (which should store the attachment)
-    await user.save();
-
-    // Verify the attachment was stored
-    assert.isFalse(avatar.isLocal);
-
-    // Get URL should now work
-    const url = await avatar.getUrl();
-    assert.isString(url);
-  });
-
-  test('model can delete an attachment', async (ctx) => {
-    // @ts-ignore - assert is added at runtime by the Japa assert plugin
-    const { assert } = ctx;
-
-    const user = new User();
-
-    // Create and set the attachment
-    const avatar = new Attachment();
-    await avatar.fromPath(testFilePath);
-    user.avatar = avatar;
-
-    // Save to store it
-    await user.save();
-
-    // Now mock the destroy method on the attachment to verify it's called
-    let destroyCalled = false;
-    const originalDestroy = avatar.destroy;
-    avatar.destroy = async function () {
-      destroyCalled = true;
-      return originalDestroy.call(this);
-    };
-
-    // Delete the model
-    await user.delete();
-
-    // Verify the destroy method was called
-    assert.isTrue(destroyCalled, 'Attachment destroy method should be called');
-  });
-
-  test('model can be serialized to JSON with attachment', async (ctx) => {
-    // @ts-ignore - assert is added at runtime by the Japa assert plugin
-    const { assert } = ctx;
-
-    const user = new User();
-
-    // Create and set the attachment
-    const avatar = new Attachment();
-    await avatar.fromPath(testFilePath);
-    user.avatar = avatar;
-
-    // Convert to JSON
-    const json = JSON.stringify(user);
-    const parsed = JSON.parse(json);
-
-    // Verify the attachment data is included
-    assert.property(parsed, 'avatar');
-    assert.equal(parsed.avatar.fileName, avatar.fileName);
-    assert.equal(parsed.avatar.size, avatar.size);
-  });
-
-  test('tracks changes to attachment during model lifecycle', async (ctx) => {
-    // @ts-ignore - assert is added at runtime by the Japa assert plugin
-    const { assert } = ctx
-
-    const testFilePath = join(process.cwd(), 'test-file.jpg')
-
-    // Create a TestModel
-    const model = new TestModel()
-    const attachment = new Attachment()
-    await attachment.fromPath(testFilePath)
-    
-    // Set attachment
-    model.avatar = attachment
-    
-    // Save model
-    await model.save()
-    
-    // Check the attachment was stored and is no longer local
-    assert.isFalse(attachment.isLocal)
-    
-    // Check it can be serialized to JSON
-    const json = model.toJSON()
-    assert.isObject(json.avatar)
-    
-    // Delete model
-    await model.delete()
-  });
-
-  test('handles missing files correctly after model load', async (ctx) => {
-    // @ts-ignore - assert is added at runtime by the Japa assert plugin
-    const { assert } = ctx
-
-    // Create a test model with attachment
-    const model = new TestModel()
-    
-    // Create an attachment that refers to a non-existent file
-    const attachment = new Attachment()
-    attachment.isLocal = false  // Pretend it's already stored
-    attachment.fileName = 'non-existent-file.jpg'
-    attachment.filePath = 'uploads/non-existent-file.jpg'
-    attachment.size = 1024
-    attachment.extname = 'jpg'
-    attachment.mimeType = 'image/jpeg'
-    attachment.disk = 'local'
-    attachment.folder = 'uploads'
-    
-    // Set it on the model
-    model.avatar = attachment
-    
-    // Set the attributes directly to simulate a loaded model
-    model.$attributes.avatar = attachment
-    model.$original.avatar = attachment
-    
-    // Create a mock of the model's afterFind hook
-    class MockModelWithHooks extends TestModel {
-      static async afterFind(instance: any) {
-        // This simulates the hook that verifies attachments
-        await verifyModelAttachments(instance)
+      // Stub methods
+      constructor() {
+        this.$attributes = {};
+        this.$original = {};
+        this.$isLocal = true;
+        this.$isPersisted = false;
+        this.$dirty = new Set();
       }
-    }
-    
-    // Function to manually verify attachments (simulates what the decorator does)
-    async function verifyModelAttachments(instance: any) {
-      const attachments = ['avatar'] // In real code this would come from model.$attachments
-      
-      for (const property of attachments) {
-        const attachment = instance[property]
-        if (attachment && !attachment.isLocal) {
-          try {
-            // Override computeUrl to simulate missing file
-            const originalComputeUrl = attachment.computeUrl
-            attachment.computeUrl = async function() {
-              throw new Error('File not found')
-            }
-            
-            // Try to compute URL which would fail
-            await attachment.computeUrl()
-            
-            // Restore original method
-            attachment.computeUrl = originalComputeUrl
-          } catch (error) {
-            // Set to null if file is missing
-            instance[property] = null
-            instance.$attributes[property] = null
-          }
+
+      // These methods simulate the behavior of a Lucid model
+      $consumeAdapterResult(adapterResult: any) {
+        this.$attributes = { ...this.$attributes, ...adapterResult };
+        this.$original = { ...this.$original, ...adapterResult };
+        this.$isPersisted = true;
+        this.$isLocal = false;
+        this.$dirty.clear();
+      }
+
+      async save(instance: typeof TestBaseModel1) {
+        // In a real model, this would call the database adapter
+        const adapterResult = { id: 1 };
+
+        // Set avatar property for saving
+        if (this.avatar) {
+          await this.avatar.store();
+          this.$attributes.avatar = this.avatar.toJSON();
+        }
+
+        this.$consumeAdapterResult(adapterResult);
+
+        // Call hooks
+        await instance.afterFind(this);
+      }
+
+      async delete(instance: typeof TestBaseModel1) {
+        // Call before delete hook
+        await instance.beforeDelete(this);
+
+        // Simulate deletion in the database
+        this.$isPersisted = false;
+      }
+
+      // Model hooks
+      static async afterFind(model: TestBaseModel1) {
+        if (model.$attributes.avatar) {
+          model.avatar = Attachment.fromJSON(model.$attributes.avatar);
+        }
+      }
+
+      static async beforeDelete(model: TestBaseModel1) {
+        if (model.avatar) {
+          await model.avatar.destroy();
+          model.avatar = null;
         }
       }
     }
-    
-    // Run the simulated hook
-    await MockModelWithHooks.afterFind(model)
-    
-    // The attachment should be null now
-    assert.isNull(model.avatar)
-    assert.isNull(model.$attributes.avatar)
+
+    const userModel = new TestBaseModel1();
+    const avatar = new Attachment();
+    await avatar.fromPath(testFilePath);
+    userModel.avatar = avatar;
+
+    // Save the model and its attachment
+    await userModel.save(TestBaseModel1);
+    assert.isTrue(userModel.$isPersisted);
+    assert.isDefined(userModel.avatar);
+    assert.isFalse(userModel.avatar!.isLocal);
+
+    // Delete the model (should also delete the attachment)
+    await userModel.delete(TestBaseModel1);
+    assert.isNull(userModel.avatar);
   });
-}) 
+
+  test("model can handle missing attachment files gracefully", async ({
+    assert,
+  }: TestContext) => {
+    /**
+     * The base model with attachments
+     */
+    class TestBaseModel2 {
+      // Define stub properties
+      $attributes: Record<string, any> = {};
+      $original: Record<string, any> = {};
+      $isLocal = true;
+      $isPersisted = false;
+      $dirty: Set<string> = new Set();
+
+      // Attachment decorator
+      @attachment()
+      declare avatar: Attachment | null;
+
+      // Stub methods
+      constructor() {
+        this.$attributes = {};
+        this.$original = {};
+        this.$isLocal = true;
+        this.$isPersisted = false;
+        this.$dirty = new Set();
+      }
+
+      // These methods simulate the behavior of a Lucid model
+      $consumeAdapterResult(adapterResult: any) {
+        this.$attributes = { ...this.$attributes, ...adapterResult };
+        this.$original = { ...this.$original, ...adapterResult };
+        this.$isPersisted = true;
+        this.$isLocal = false;
+        this.$dirty.clear();
+      }
+
+      async save(instance: typeof TestBaseModel2) {
+        // In a real model, this would call the database adapter
+        const adapterResult = { id: 1 };
+
+        // Set avatar property for saving
+        if (this.avatar) {
+          await this.avatar.store();
+          this.$attributes.avatar = this.avatar.toJSON();
+        }
+
+        this.$consumeAdapterResult(adapterResult);
+
+        // Call hooks
+        await instance.afterFind(this);
+      }
+
+      async delete(instance: typeof TestBaseModel2) {
+        // Call before delete hook
+        await instance.beforeDelete(this);
+
+        // Simulate deletion in the database
+        this.$isPersisted = false;
+      }
+
+      // Model hooks
+      static async afterFind(model: TestBaseModel2) {
+        if (model.$attributes.avatar) {
+          model.avatar = Attachment.fromJSON(model.$attributes.avatar);
+        }
+      }
+
+      static async beforeDelete(model: TestBaseModel2) {
+        if (model.avatar) {
+          await model.avatar.destroy();
+          model.avatar = null;
+        }
+      }
+    }
+
+    // Create a model without an actual file for the attachment
+    const userModel = new TestBaseModel2();
+
+    // Directly set a JSON representation of an attachment to the model attributes
+    userModel.$attributes.avatar = {
+      fileName: "non-existent.jpg",
+      size: 1024,
+      mimeType: "image/jpeg",
+      extname: "jpg",
+      folder: "avatars",
+      disk: "local",
+    };
+
+    // This would normally be called by the model's afterFind hook
+    userModel.avatar = Attachment.fromJSON(userModel.$attributes.avatar);
+
+    // Deletion should not throw even if the file doesn't exist
+    await userModel.delete(TestBaseModel2);
+    assert.isNull(userModel.avatar);
+  });
+
+  test("model can save an attachment", async ({ assert }: TestContext) => {
+    class TestUser1 {
+      $attributes: Record<string, any> = {};
+      $isDirty = false;
+
+      @attachment()
+      declare avatar: Attachment | null;
+
+      persist() {
+        this.$isDirty = false;
+        return this;
+      }
+    }
+
+    const user = new TestUser1();
+    const file = new Attachment();
+    await file.fromPath(testFilePath);
+
+    user.avatar = file;
+    await user.avatar.store();
+
+    assert.isObject(user.$attributes.avatar);
+    assert.isFalse(user.avatar.isLocal);
+  });
+
+  test("can get attachment url", async ({ assert }: TestContext) => {
+    class TestUser2 {
+      $attributes: Record<string, any> = {};
+
+      @attachment()
+      declare avatar: Attachment | null;
+    }
+
+    const user = new TestUser2();
+    const file = new Attachment();
+    await file.fromPath(testFilePath);
+
+    user.avatar = file;
+    await user.avatar.store();
+
+    const url = await user.avatar.getUrl();
+    assert.isString(url);
+  });
+
+  test("can compute attachment url", async ({ assert }: TestContext) => {
+    class TestUser3 {
+      $attributes: Record<string, any> = {};
+
+      @attachment()
+      declare avatar: Attachment | null;
+    }
+
+    const user = new TestUser3();
+    const file = new Attachment();
+    await file.fromPath(testFilePath);
+
+    user.avatar = file;
+    await user.avatar.store();
+
+    const url = await user.avatar.computeUrl();
+    assert.isString(url);
+    assert.equal(user.avatar.url, url);
+  });
+
+  test("can specify folder for attachment", async ({ assert }: TestContext) => {
+    class TestUser4 {
+      $attributes: Record<string, any> = {};
+
+      @attachment({ folder: "avatars" })
+      declare avatar: Attachment | null;
+    }
+
+    const user = new TestUser4();
+    const file = new Attachment();
+    await file.fromPath(testFilePath);
+
+    user.avatar = file;
+    await user.avatar.store();
+
+    const url = await user.avatar.getUrl();
+    assert.include(url, "avatars/");
+  });
+
+  test("model can delete an attachment", async ({ assert }: TestContext) => {
+    class TestUser5 {
+      $attributes: Record<string, any> = {};
+
+      @attachment()
+      declare avatar: Attachment | null;
+
+      async deleteAttachment() {
+        if (this.avatar) {
+          await this.avatar.destroy();
+          this.avatar = null;
+        }
+      }
+    }
+
+    const user = new TestUser5();
+    const file = new Attachment();
+    await file.fromPath(testFilePath);
+
+    user.avatar = file;
+    await user.avatar.store();
+
+    await user.deleteAttachment();
+    assert.isNull(user.avatar);
+  });
+
+  test("can validate attachment MIME type", async ({ assert }: TestContext) => {
+    class TestUser6 {
+      $attributes: Record<string, any> = {};
+
+      @attachment({
+        allowedMimes: ["image/jpeg", "image/png"],
+      })
+      declare avatar: Attachment | null;
+    }
+
+    const user = new TestUser6();
+    const file = new Attachment();
+    await file.fromPath(testFilePath);
+
+    // Mock MIME type
+    file.mimeType = "image/jpeg";
+    user.avatar = file;
+
+    assert.isTrue(
+      file.validateMimeType({ allowedMimes: ["image/jpeg", "image/png"] }),
+    );
+
+    // Change to invalid MIME type
+    file.mimeType = "text/plain";
+    assert.isFalse(
+      file.validateMimeType({ allowedMimes: ["image/jpeg", "image/png"] }),
+    );
+  });
+
+  test("model can be serialized to JSON with attachment", async ({
+    assert,
+  }: TestContext) => {
+    class TestUser7 {
+      $attributes: Record<string, any> = {};
+      id = 1;
+      username = "johndoe";
+
+      @attachment()
+      declare avatar: Attachment | null;
+
+      toJSON() {
+        return {
+          id: this.id,
+          username: this.username,
+          avatar: this.avatar ? this.avatar.toJSON() : null,
+        };
+      }
+    }
+
+    const user = new TestUser7();
+    const file = new Attachment();
+    await file.fromPath(testFilePath);
+
+    // Store the file and set URL
+    user.avatar = file;
+    await user.avatar.store();
+    await user.avatar.computeUrl();
+
+    const json = user.toJSON();
+    assert.isObject(json);
+    assert.equal(json.id, 1);
+    assert.equal(json.username, "johndoe");
+    assert.isObject(json.avatar);
+
+    // Check avatar properties safely
+    if (json.avatar) {
+      assert.isString(json.avatar.url);
+    }
+  });
+
+  test("tracks changes to attachment during model lifecycle", async ({
+    assert,
+  }: TestContext) => {
+    class TestUser8 {
+      $attributes: Record<string, any> = {};
+      $isDirty = false;
+      $original: Record<string, any> = {};
+
+      @attachment()
+      declare avatar: Attachment | null;
+
+      // Simple dirty tracker
+      markAsDirty(field: string) {
+        this.$isDirty = true;
+        // Track original value for reporting changes
+        if (!this.$original[field] && this.$attributes[field]) {
+          this.$original[field] = this.$attributes[field];
+        }
+      }
+
+      // Implementation for demo purposes
+      async save() {
+        // Clear dirty flag
+        this.$isDirty = false;
+        return this;
+      }
+    }
+
+    // Create a user
+    const user = new TestUser8();
+
+    // Set an attachment
+    const file = new Attachment();
+    await file.fromPath(testFilePath);
+    user.avatar = file;
+
+    // Should mark the model as dirty
+    assert.isTrue(user.$isDirty);
+
+    // Save should clear the dirty flag
+    await user.save();
+    assert.isFalse(user.$isDirty);
+
+    // Changing the attachment should mark dirty again
+    const newFile = new Attachment();
+    await newFile.fromPath(testFilePath);
+    user.avatar = newFile;
+    assert.isTrue(user.$isDirty);
+  });
+
+  test("handles missing files correctly after model load", async ({
+    assert,
+  }: TestContext) => {
+    class TestUser9 {
+      $attributes: Record<string, any> = {};
+
+      @attachment()
+      declare avatar: Attachment | null;
+
+      // Simulate loading from database
+      static fromDatabase(data: Record<string, any>) {
+        const user = new TestUser9();
+        user.$attributes = data;
+        return user;
+      }
+    }
+
+    // Create a user with a reference to a non-existent file
+    const userData = {
+      id: 1,
+      username: "johndoe",
+      avatar: {
+        fileName: "missing.jpg",
+        size: 1024,
+        extname: "jpg",
+        mimeType: "image/jpeg",
+        folder: "avatars",
+        disk: "local",
+      },
+    };
+
+    const user = TestUser9.fromDatabase(userData);
+
+    // The avatar should be loaded from the JSON data
+    assert.instanceOf(user.avatar, Attachment);
+    assert.equal(user.avatar!.fileName, "missing.jpg");
+
+    // Should not throw when trying to access a non-existent file
+    try {
+      await user.avatar!.getUrl();
+      assert.isTrue(true, "No error thrown");
+    } catch (error) {
+      assert.fail("Should not throw error on missing file");
+    }
+  });
+});

@@ -1,5 +1,5 @@
-import { configPkg } from '@adonisjs/eslint-config'
+import { configPkg } from "@adonisjs/eslint-config";
 
 export default configPkg({
-  ignores: ['coverage'],
-})
+  ignores: ["coverage"],
+});

@@ -10,18 +10,21 @@
 /**
  * Export Attachment class and interfaces
  */
-export { Attachment } from './src/attachment.js'
-export { attachment } from './src/decorator/decorator.js'
+export { Attachment } from "./src/attachment.js";
+export { attachment } from "./src/decorator/decorator.js";
 
-
-export { configure } from './configure.js'
+export { configure } from "./configure.js";
 
 /**
  * Export the provider
  */
-export { default as AttachmentProvider } from './providers/attachment_provider.js'
+export { default as AttachmentProvider } from "./providers/attachment_provider.js";
 
 /**
  * Export types
  */
-export type { AttachmentOptions, AttachmentContract, AttachmentLiteConfig } from './src/types.js' 
+export type {
+  AttachmentOptions,
+  AttachmentContract,
+  AttachmentLiteConfig,
+} from "./src/types.js";

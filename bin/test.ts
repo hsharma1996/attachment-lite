@@ -7,11 +7,11 @@
  * file that was distributed with this source code.
  */
 
-import { configure, run } from '@japa/runner'
-import { assert } from '@japa/assert'
+import { configure, run } from "@japa/runner";
+import { assert } from "@japa/assert";
 
 // Extend TestContext interface to include assert
-declare module '@japa/runner' {
+declare module "@japa/runner" {
   interface TestContext {
     assert: {
       isFunction: (value: any) => void;
@@ -27,18 +27,18 @@ declare module '@japa/runner' {
       strictEqual: (actual: any, expected: any, message?: string) => void;
       isDefined: (value: any, message?: string) => void;
       exists: (value: any, message?: string) => void;
-    }
+    };
   }
 }
 
-console.log('Starting test runner...')
+console.log("Starting test runner...");
 
 // Configure the test runner
 configure({
-  files: ['tests/**/*.spec.ts'],
+  files: ["tests/**/*.spec.ts"],
   plugins: [assert()],
-  timeout: 5000
-})
+  timeout: 5000,
+});
 
 // Run the tests
-run()
+run();

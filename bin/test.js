@@ -17,9 +17,9 @@ var assert_1 = require("@japa/assert");
 */
 (0, runner_1.processCLIArgs)(process.argv.slice(2));
 (0, runner_1.configure)({
-    files: ['tests/**/*.spec.ts'],
-    plugins: [(0, assert_1.assert)()],
-    timeout: 5000, // 5 second timeout for tests
+  files: ["tests/**/*.spec.ts"],
+  plugins: [(0, assert_1.assert)()],
+  timeout: 5000, // 5 second timeout for tests
 });
-console.log('Starting test runner...');
+console.log("Starting test runner...");
 (0, runner_1.run)();
