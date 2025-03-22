@@ -23,7 +23,7 @@ class BaseModel {
   static $attachments: Record<string, any> = {}
   static $columns: Record<string, any> = {}
 
-  static boot() {}
+  static boot() { }
 
   static $addColumn(property: string, columnConfig: any) {
     if (!this.$columns) {
@@ -32,11 +32,15 @@ class BaseModel {
     this.$columns[property] = columnConfig
   }
 
-  static before(hookName: string, callback: Function) {}
-  static after(hookName: string, callback: Function) {}
+  static before(hookName: string, callback: Function) {
+    console.log('before', hookName, callback)
+  }
+  static after(hookName: string, callback: Function) {
+    console.log('after', hookName, callback)
+  }
 
-  async save() {}
-  async delete() {}
+  async save() { }
+  async delete() { }
   toJSON() {
     return this.$attributes
   }
@@ -53,14 +57,14 @@ test.group('Attachment Options', (group) => {
     // Create test files
     testFilePath = join(process.cwd(), 'test-file.txt')
     testImagePath = join(process.cwd(), 'test-image.jpg')
-    
+
     await fs.writeFile(testFilePath, 'Test content')
     await fs.writeFile(testImagePath, 'Fake image content')
 
     return async () => {
       await Promise.all([
-        fs.unlink(testFilePath).catch(() => {}),
-        fs.unlink(testImagePath).catch(() => {})
+        fs.unlink(testFilePath).catch(() => { }),
+        fs.unlink(testImagePath).catch(() => { })
       ])
     }
   })
@@ -68,21 +72,21 @@ test.group('Attachment Options', (group) => {
   test('validateMimeType validates mime types correctly', async (ctx) => {
     // @ts-ignore - assert is added at runtime by the Japa assert plugin
     const { assert } = ctx
-    
+
     // Create attachments with different mime types
     const textFile = new Attachment()
     await textFile.fromPath(testFilePath)
     textFile.mimeType = 'text/plain'
-    
+
     const imageFile = new Attachment()
     await imageFile.fromPath(testImagePath)
     imageFile.mimeType = 'image/jpeg'
-    
+
     // Test the validateMimeType method directly
     const allowedMimes = ['text/plain']
     assert.isTrue(textFile.validateMimeType({ allowedMimes }))
     assert.isFalse(imageFile.validateMimeType({ allowedMimes }))
-    
+
     // Test that our implementation uses this method
     // We can't easily test the hook directly, so we'll test the logic
     // that would be executed by the hook
@@ -90,7 +94,7 @@ test.group('Attachment Options', (group) => {
       validateMime: true,
       allowedMimes: ['text/plain']
     }
-    
+
     // Valid MIME type should pass
     assert.doesNotThrow(() => {
       if (options.validateMime && options.allowedMimes && options.allowedMimes.length > 0) {
@@ -102,7 +106,7 @@ test.group('Attachment Options', (group) => {
         }
       }
     })
-    
+
     // Invalid MIME type should throw
     assert.throws(() => {
       if (options.validateMime && options.allowedMimes && options.allowedMimes.length > 0) {
@@ -119,30 +123,30 @@ test.group('Attachment Options', (group) => {
   test('computeUrl option is honored by the model', async (ctx) => {
     // @ts-ignore - assert is added at runtime by the Japa assert plugin
     const { assert } = ctx
-    
+
     // Create an attachment
     const file = new Attachment()
     await file.fromPath(testFilePath)
-    
+
     // Store the file to allow URL computation
     await file.store()
-    
+
     // Assert URL is not computed yet
     assert.isNull(file.url)
-    
+
     // Manually compute URL
     const url = await file.computeUrl()
-    
+
     // URL should now be computed
     assert.isNotNull(url)
     assert.isNotNull(file.url)
     assert.equal(file.url, url)
   })
-  
+
   test('attachment options are stored on the model', async (ctx) => {
     // @ts-ignore - assert is added at runtime by the Japa assert plugin
     const { assert } = ctx
-    
+
     // Define model with various attachment options
     class UserModel extends BaseModel {
       @attachment({
@@ -154,7 +158,7 @@ test.group('Attachment Options', (group) => {
       })
       declare avatar: Attachment
     }
-    
+
     // Check if options were stored correctly
     assert.isObject(UserModel.$attachments)
     assert.isObject(UserModel.$attachments.avatar)
@@ -164,24 +168,24 @@ test.group('Attachment Options', (group) => {
     assert.isTrue(UserModel.$attachments.avatar.validateMime)
     assert.deepEqual(UserModel.$attachments.avatar.allowedMimes, ['image/jpeg', 'image/png'])
   })
-  
+
   test('setOptions method applies attachment options correctly', async (ctx) => {
     // @ts-ignore - assert is added at runtime by the Japa assert plugin
     const { assert } = ctx
-    
+
     // Create an attachment
     const file = new Attachment()
     await file.fromPath(testFilePath)
-    
+
     // Define options similar to what would be passed by the model
     const options = {
       disk: 'custom',
       folder: 'avatars'
     }
-    
+
     // Apply options using setOptions
     file.setOptions(options)
-    
+
     // Verify options were applied
     assert.equal(file.disk, 'custom')
     assert.equal(file.folder, 'avatars')
