@@ -5,6 +5,12 @@
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "type": "module",
+  "author": "Craftnotion",
+  "publishConfig": {
+    "access": "public",
+    "tag": "latest",
+    "registry": "https://registry.npmjs.org"
+  },
   "files": [
     "build",
     "!build/bin",
@@ -48,7 +54,6 @@
     "attachment",
     "file-upload"
   ],
-  "author": "AdonisJS",
   "license": "MIT",
   "peerDependencies": {
     "@adonisjs/assembler": "^7.0.0",
