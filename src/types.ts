@@ -166,4 +166,9 @@ export interface AttachmentContract {
    * Convert the attachment to JSON
    */
   toJSON(): Record<string, any>
+
+  /**
+   * Convert the attachment to a plain object for database storage
+   */
+  toObject(): Record<string, any>
 } 

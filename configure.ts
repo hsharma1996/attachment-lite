@@ -13,6 +13,6 @@ export async function configure(command: Configure) {
   const codemods = await command.createCodemods()
   // Add provider to rc file
   await codemods.updateRcFile((rcFile: any) => {
-    rcFile.addProvider('@adonisjs/attachment-lite/providers/attachment_provider')
+    rcFile.addProvider('@adonisjs/attachment-lite/attachment_provider')
   })
 } 

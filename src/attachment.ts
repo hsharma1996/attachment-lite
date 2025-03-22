@@ -248,6 +248,41 @@ export class Attachment implements AttachmentContract {
   }
 
   /**
+   * Create an attachment from database response
+   * This method safely handles DB responses and returns null for invalid data
+   */
+  public static fromDbResponse(
+    data: null | string | {
+      fileName: string,
+      size: number,
+      extname: string,
+      mimeType: string,
+      disk?: string,
+      folder?: string
+    }
+  ): Attachment | null {
+    if (!data) {
+      return null
+    }
+
+    try {
+      // Parse string data if needed
+      const jsonData = typeof data === 'string' ? JSON.parse(data) : data
+      
+      // Validate required fields
+      if (!jsonData.fileName || typeof jsonData.size !== 'number' || 
+          !jsonData.extname || !jsonData.mimeType) {
+        return null
+      }
+      
+      return this.fromJSON(jsonData)
+    } catch (error) {
+      // If parsing fails due to missing file or invalid data, return null
+      return null
+    }
+  }
+
+  /**
    * Set options for the attachment
    */
   public setOptions(options?: AttachmentOptions): this {
@@ -397,6 +432,20 @@ export class Attachment implements AttachmentContract {
       extname: this.extname,
       mimeType: this.mimeType,
       url: this.url,
+    }
+  }
+
+  /**
+   * Convert the attachment to a plain object for database storage
+   */
+  public toObject(): Record<string, any> {
+    return {
+      fileName: this.fileName,
+      size: this.size,
+      extname: this.extname,
+      mimeType: this.mimeType,
+      disk: this.disk,
+      folder: this.folder,
     }
   }
 
