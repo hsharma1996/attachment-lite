@@ -20,7 +20,7 @@
   "exports": {
     ".": "./build/index.js",
     "./services/main": "./build/services/main.js",
-    "./redis_rpc_provider": "./build/providers/redis_rpc_provider.js",
+    "./attachment_provider": "./build/providers/attachment_provider.js",
     "./types": "./build/src/types.js"
   },
   "tsup": {

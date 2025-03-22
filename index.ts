@@ -13,12 +13,8 @@
 export { Attachment } from './src/attachment.js'
 export { attachment } from './src/decorator/decorator.js'
 
-/**
- * Export the config function used for defining package configuration
- */
-export function defineConfig(config: any) {
-  return config
-}
+
+export { configure } from './configure.js'
 
 /**
  * Export the provider
