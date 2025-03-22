@@ -28,7 +28,7 @@ class BaseModel {
   static $addColumn() { }
 }
 
-test.group('Attachment Decorator', (group) => {
+test.group('Attachment Decorator', () => {
   test('decorator exists and is exported', async (ctx) => {
     // @ts-ignore - assert is added at runtime by the Japa assert plugin
     const { assert } = ctx
@@ -49,7 +49,7 @@ test.group('Attachment Decorator', (group) => {
     const { assert } = ctx
 
     // Create a mock class with the decorator
-    const decoratedProperty = attachment()
+    // const decoratedProperty = attachment()
 
     // Manually apply what the decorator would do
     class TestModel extends BaseModel {

@@ -7,7 +7,7 @@
  * file that was distributed with this source code.
  */
 
-import { configure, processCLIArgs, run } from '@japa/runner'
+import { configure, run } from '@japa/runner'
 import { assert } from '@japa/assert'
 
 // Extend TestContext interface to include assert

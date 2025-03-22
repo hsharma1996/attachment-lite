@@ -9,7 +9,6 @@
 
 import { test } from '@japa/runner'
 import { Attachment } from '../src/attachment.js'
-import { attachment } from '../src/decorator/decorator.js'
 import { setupDrive } from './bootstrap.js'
 import { join } from 'node:path'
 import fs from 'node:fs/promises'

@@ -8,20 +8,10 @@
  */
 
 /**
- * Export Attachment class and attachment decorator
+ * Export Attachment class and interfaces
  */
 export { Attachment } from './src/attachment.js'
 export { attachment } from './src/decorator/decorator.js'
-
-/**
- * Export the provider
- */
-export { default as AttachmentProvider } from './providers/attachment_provider.js'
-
-/**
- * Export drive setup utilities
- */
-export { setupDrive, ensureDriveIsSet } from './src/drive_setup.js'
 
 /**
  * Export the config function used for defining package configuration
@@ -31,17 +21,11 @@ export function defineConfig(config: any) {
 }
 
 /**
- * Export types
+ * Export the provider
  */
-export type { AttachmentOptions, AttachmentContract, AttachmentLiteConfig } from './src/types.js'
+export { default as AttachmentProvider } from './providers/attachment_provider.js'
 
 /**
- * Simple utility to set up the drive service for attachments
- * This is kept for backward compatibility
+ * Export types
  */
-export function setupAttachmentDrive(drive: any) {
-  const { Attachment } = require('./src/attachment.js')
-  Attachment.setDrive(drive)
-  console.log('Drive set successfully for Attachment')
-  return drive
-} 
+export type { AttachmentOptions, AttachmentContract, AttachmentLiteConfig } from './src/types.js' 

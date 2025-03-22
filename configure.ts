@@ -1,30 +1,18 @@
-/*
+/**
  * @adonisjs/attachment-lite
  *
- * (c) AdonisJS
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * @license MIT
  */
 
-import { defineConfig } from './index.js'
+import type Configure from '@adonisjs/core/commands/configure'
 
 /**
- * Configuration options for attachment-lite
+ * Configure the package on installation
  */
-export default defineConfig({
-  /**
-   * Default disk to use for storing attachments
-   */
-  disk: 'local',
-  
-  /**
-   * Default folder to store attachments
-   */
-  defaultFolder: 'uploads',
-  
-  /**
-   * Whether to validate uploaded file MIME types
-   */
-  validateMimeTypes: true,
-}) 
+export async function configure(command: Configure) {
+  const codemods = await command.createCodemods()
+  // Add provider to rc file
+  await codemods.updateRcFile((rcFile: any) => {
+    rcFile.addProvider('@adonisjs/attachment-lite/providers/attachment_provider')
+  })
+} 

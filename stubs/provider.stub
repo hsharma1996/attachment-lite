@@ -1,9 +1,0 @@
-import { ApplicationService } from '@adonisjs/core/types'
-import { AttachmentLiteProvider } from '@adonisjs/attachment-lite'
-
-export default async function provider(app: ApplicationService) {
-  /**
-   * Register the attachment lite provider
-   */
-  await app.container.register(new AttachmentLiteProvider(app))
-} 

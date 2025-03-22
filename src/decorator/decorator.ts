@@ -7,7 +7,6 @@
  * file that was distributed with this source code.
  */
 
-import type { LucidModel, LucidRow } from '@adonisjs/lucid/types/model'
 import type { AttachmentOptions, AttachmentContract } from '../types.js'
 import { Attachment } from '../attachment.js'
 

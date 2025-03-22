@@ -15,11 +15,10 @@ import { createReadStream } from 'node:fs'
 import { stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
-import drive from '@adonisjs/drive/services/main'
+import { Disk, DriveManager } from 'flydrive'
 import type { DriverContract } from '@adonisjs/drive/types'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Disk, DriveManager } from '@adonisjs/drive'
 
 /**
  * Type definition for multipart files with only the properties we actually use
@@ -32,14 +31,14 @@ export interface MultipartFileAdapter {
   type?: string | null
   clientName?: string
   fileName?: string
-
+  
   // We don't use these properties but they might be accessed by user code
   filePath?: string
   fieldName?: string
   headers?: any
   validated?: boolean
   isValid?: boolean
-
+  
   // Any other properties are allowed but not required
   [key: string]: any
 }
@@ -51,7 +50,7 @@ export class Attachment implements AttachmentContract {
   /**
    * Static reference to the drive instance
    */
-  private static drive: DriveManager<Record<string, () => DriverContract>> = drive
+  private static drive: DriveManager<Record<string, () => DriverContract>>
 
   /**
    * Is attachment a local file that hasn't been persisted yet
@@ -145,10 +144,10 @@ export class Attachment implements AttachmentContract {
    * Create an attachment from a buffer (static method)
    */
   public static async fromBuffer(
-    buffer: Buffer,
-    options: AttachmentOptions & {
-      filename: string,
-      mimeType?: string
+    buffer: Buffer, 
+    options: AttachmentOptions & { 
+      filename: string, 
+      mimeType?: string 
     }
   ): Promise<Attachment> {
     const attachment = new Attachment();
@@ -405,14 +404,14 @@ export class Attachment implements AttachmentContract {
    * Create an attachment from a buffer
    */
   public async fromBuffer(
-    buffer: Buffer,
-    options: AttachmentOptions & {
-      filename: string,
-      mimeType?: string
+    buffer: Buffer, 
+    options: AttachmentOptions & { 
+      filename: string, 
+      mimeType?: string 
     }
   ): Promise<this> {
     this.isLocal = true
-
+    
     const extname = path.extname(options.filename).substring(1)
     this.fileName = `${randomUUID()}.${extname}`
     this.size = buffer.length

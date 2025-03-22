@@ -1,52 +1,43 @@
-/*
+/**
  * @adonisjs/attachment-lite
  *
- * (c) AdonisJS
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * @license MIT
  */
 
 import type { ApplicationService } from '@adonisjs/core/types'
 import { Attachment } from '../src/attachment.js'
-import drive from '@adonisjs/drive/services/main'
 
 /**
- * Extending the container with attachment.lite binding
+ * Define container bindings for TypeScript
  */
 declare module '@adonisjs/core/types' {
   interface ContainerBindings {
-    'attachment.lite': typeof Attachment
+    'craftnotion/attachment-lite': typeof Attachment
   }
 }
 
 /**
- * Attachment Provider registers the Attachment class
- * to the IoC container and sets up the Drive instance
+ * Provider to register the attachment-lite service
  */
 export default class AttachmentProvider {
   constructor(protected app: ApplicationService) { }
 
   /**
-   * Register bindings to the container
+   * Register the attachment service to the container
    */
   register() {
-    this.app.container.withBinds('attachment.lite', () => {
-      return Attachment
+    // Register the Attachment class in the container
+    this.app.container.singleton('craftnotion/attachment-lite', async () => {
+      const drive = await this.app.container.make('drive.manager')
+      Attachment.setDrive(drive)
+      return Attachment;
     })
   }
 
   /**
-   * This method is called when all providers are registered
-   * and the application is ready to boot.
+   * Boot the provider when app is ready
    */
   async boot() {
-    try {
-      // Simple approach: Just try to get drive from the container
-      Attachment.setDrive(drive)
-      console.log('Attachment-lite: Drive instance has been set successfully')
-    } catch (error) {
-      console.error('Failed to set Drive for Attachment-lite.', error)
-    }
+
   }
 } 

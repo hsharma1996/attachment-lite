@@ -1,5 +1,5 @@
 {
-  "name": "@cn/attachment-lite",
+  "name": "@craftnotion/attachment-lite",
   "version": "2.0.0",
   "description": "Convert fields on Lucid models to attachment data type",
   "main": "build/index.js",
@@ -7,16 +7,39 @@
   "type": "module",
   "files": [
     "build",
-    "src",
-    "providers",
-    "configure.ts",
-    "index.ts"
+    "!build/bin",
+    "!build/tests",
+    "!build/tests_helpers"
   ],
+  "exports": {
+    ".": "./build/index.js",
+    "./services/main": "./build/services/main.js",
+    "./redis_rpc_provider": "./build/providers/redis_rpc_provider.js",
+    "./types": "./build/src/types.js"
+  },
+  "tsup": {
+    "entry": [
+      "./index.ts",
+      "./src/types.ts",
+      "./services/main.ts",
+      "./providers/redis_rpc_provider.ts"
+    ],
+    "outDir": "./build",
+    "clean": true,
+    "format": "esm",
+    "dts": false,
+    "sourcemap": true,
+    "target": "esnext"
+  },
   "scripts": {
-    "build": "npm run clean && tsc",
+    "build": "npm run test && npm run build-only",
+    "build-only": "tsc",
     "clean": "del-cli build",
     "test": "node --import=ts-node-maintained/register/esm --enable-source-maps bin/test.ts",
-    "pretest": "npm run build"
+    "lint": "eslint .",
+    "release": "npx release-it",
+    "prepublishOnly": "npm run build",
+    "format": "prettier --write ."
   },
   "keywords": [
     "adonisjs",
@@ -28,27 +51,28 @@
   "author": "AdonisJS",
   "license": "MIT",
   "peerDependencies": {
-    "@adonisjs/core": "^6.0.0",
+    "@adonisjs/assembler": "^7.0.0",
+    "@adonisjs/core": "^6.2.0",
     "@adonisjs/drive": "^3.4.1",
     "@adonisjs/lucid": "^19.0.0"
   },
   "dependencies": {
-    "@japa/assert": "^4.0.1",
-    "@poppinss/utils": "^6.7.1",
-    "ts-node-maintained": "^10.9.5"
+    "@poppinss/utils": "^6.7.1"
   },
   "devDependencies": {
-    "@adonisjs/core": "^6.0.0",
+    "@swc/core": "^1.10.16",
+    "@adonisjs/tsconfig": "^1.4.0",
+    "@adonisjs/eslint-config": "^2.0.0",
+    "@adonisjs/core": "^6.2.0",
     "@adonisjs/drive": "^3.4.1",
     "@adonisjs/lucid": "^19.0.0",
+    "@japa/assert": "^4.0.1",
     "@japa/runner": "^3.0.0",
     "@types/node": "^20.0.0",
     "del-cli": "^5.0.0",
+    "eslint": "^9.23.0",
+    "globals": "^16.0.0",
+    "ts-node-maintained": "^10.9.5",
     "typescript": "^5.0.0"
-  },
-  "compilerOptions": {
-    "paths": {
-      "@cn/attachment-lite/*": ["./node_modules/@cn/attachment-lite/*"]
-    }
   }
 }
